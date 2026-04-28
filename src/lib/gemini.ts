@@ -5,9 +5,11 @@ let aiInstance: GoogleGenAI | null = null;
 
 function getAI() {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is missing. Please ensure your Secrets are configured in AI Studio.");
+  
+  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "") {
+    throw new Error("Invalid or Missing API Key. To fix this: 1. Go to the 'Secrets' panel in AI Studio. 2. Ensure 'GEMINI_API_KEY' is set to a valid API key from your Google AI Studio account.");
   }
+  
   if (!aiInstance) {
     aiInstance = new GoogleGenAI({ apiKey });
   }
@@ -37,7 +39,7 @@ export async function analyzeDecision(question: string, userPriorities?: Record<
         Strictly categorize every pro and con into: 'Financial', 'Emotional', 'Time/Effort', 'Risk', or 'Other'.`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-1.5-flash", // Using stable model for production reliability
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
       systemInstruction: "You are an elite strategic decision-making engine. Provide analytical choice architecture in JSON format.",
