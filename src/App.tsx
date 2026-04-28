@@ -47,7 +47,8 @@ export default function App() {
       setHistory(prev => [...prev, newItem]);
     } catch (err) {
       console.error(err);
-      setError('I encountered an error while analyzing your decision. Please try again.');
+      const message = err instanceof Error ? err.message : 'I encountered an error while analyzing your decision. Please try again.';
+      setError(message);
     } finally {
       setIsLoading(false);
     }

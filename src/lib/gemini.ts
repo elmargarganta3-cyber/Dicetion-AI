@@ -1,18 +1,27 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DecisionAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is missing. Please ensure your Secrets are configured in AI Studio.");
+  }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+}
 
 export async function analyzeDecision(question: string, userPriorities?: Record<string, number>): Promise<DecisionAnalysis> {
+  const ai = getAI();
+  
   const prioritiesContext = userPriorities 
     ? `The user has specified these priorities (weights 1-5): ${JSON.stringify(userPriorities)}.`
     : "Use balanced weights (3/5) for standard factors like Financial, Emotional, Time, and Risk unless the context suggests otherwise.";
 
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [{ 
-      parts: [{ 
-        text: `Analyze the following decision: "${question}". 
+  const prompt = `Analyze the following decision: "${question}". 
         ${prioritiesContext}
         
         SMART OPTION GENERATOR:
@@ -25,15 +34,13 @@ export async function analyzeDecision(question: string, userPriorities?: Record<
         Calculate TotalScore = sum(weight * rating).
         
         CATEGORIZED PROS/CONS:
-        Strictly categorize every pro and con into: 'Financial', 'Emotional', 'Time/Effort', 'Risk', or 'Other'.` 
-      }] 
-    }],
+        Strictly categorize every pro and con into: 'Financial', 'Emotional', 'Time/Effort', 'Risk', or 'Other'.`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
     config: {
-      systemInstruction: `You are an elite strategic decision-making engine. 
-      Your role is to provide cold, analytical, yet comprehensive choice architecture.
-      
-      You must always return a JSON object adhering to the schema.
-      Be realistic, identify 'Update-Gaps' in the user's thinking, and suggest superior alternatives.`,
+      systemInstruction: "You are an elite strategic decision-making engine. Provide analytical choice architecture in JSON format.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,

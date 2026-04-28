@@ -5,6 +5,9 @@ import {
   HelpCircle, ArrowRight, Sparkles, Target, BarChart3, 
   DollarSign, Heart, ShieldAlert, Hourglass, Zap
 } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid
+} from 'recharts';
 import { DecisionAnalysis, ProCon } from '../types';
 
 interface AnalysisViewProps {
@@ -174,6 +177,60 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({ analysis }) => {
               </div>
             </div>
           ))}
+        </div>
+      </motion.section>
+
+      {/* Visual Score Comparison */}
+      <motion.section variants={itemVariants} className="analysis-section">
+        <label className="label-small flex items-center gap-2">
+          <TrendingUp className="w-3 h-3" />
+          <span>Metric Comparison: Weighted Totals</span>
+        </label>
+        <div className="glass-panel p-8 bg-white h-[400px] mt-8">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={analysis.options}
+              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#00000010" />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontFamily: 'monospace', fill: '#8E9299' }}
+                interval={0}
+                angle={-15}
+                textAnchor="end"
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 10, fontFamily: 'monospace', fill: '#8E9299' }}
+              />
+              <Tooltip 
+                cursor={{ fill: '#00000005' }}
+                contentStyle={{ 
+                  borderRadius: '12px', 
+                  border: 'none', 
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                  fontFamily: 'Space Grotesk',
+                  fontWeight: 'bold'
+                }}
+              />
+              <Bar 
+                dataKey="totalScore" 
+                radius={[4, 4, 0, 0]}
+                barSize={60}
+              >
+                {analysis.options.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={entry.name === analysis.recommendation.bestOption ? '#141414' : '#E4E3E0'} 
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </motion.section>
 
