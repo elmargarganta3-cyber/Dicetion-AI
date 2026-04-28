@@ -1,129 +1,33 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { DecisionAnalysis } from "../types";
 
-let aiInstance: GoogleGenAI | null = null;
-
-function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  
-  if (!apiKey || apiKey === "MY_GEMINI_API_KEY" || apiKey === "") {
-    throw new Error("Invalid or Missing API Key. To fix this: 1. Go to the 'Secrets' panel in AI Studio. 2. Ensure 'GEMINI_API_KEY' is set to a valid API key from your Google AI Studio account.");
-  }
-  
-  if (!aiInstance) {
-    aiInstance = new GoogleGenAI({ apiKey });
-  }
-  return aiInstance;
-}
-
+/**
+ * Sends a decision analysis request to the backend API.
+ * This approach is more secure (API keys stay on the server) 
+ * and avoids permission issues in the browser.
+ */
 export async function analyzeDecision(question: string, userPriorities?: Record<string, number>): Promise<DecisionAnalysis> {
-  const ai = getAI();
-  
-  const prioritiesContext = userPriorities 
-    ? `The user has specified these priorities (weights 1-5): ${JSON.stringify(userPriorities)}.`
-    : "Use balanced weights (3/5) for standard factors like Financial, Emotional, Time, and Risk unless the context suggests otherwise.";
-
-  const prompt = `Analyze the following decision: "${question}". 
-        ${prioritiesContext}
-        
-        SMART OPTION GENERATOR:
-        1. Include obvious choices.
-        2. Suggest creative "middle-ground" or "transition" alternatives the user may have missed.
-        
-        WEIGHTED SCORING:
-        For each option, evaluate factors (Financial, Emotional, Time/Effort, Risk).
-        Assign each a WEIGHT (1-5) and a RATING (1-10).
-        Calculate TotalScore = sum(weight * rating).
-        
-        CATEGORIZED PROS/CONS:
-        Strictly categorize every pro and con into: 'Financial', 'Emotional', 'Time/Effort', 'Risk', or 'Other'.`;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash", // Using stable model for production reliability
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
-      systemInstruction: "You are an elite strategic decision-making engine. Provide analytical choice architecture in JSON format.",
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          decisionClarified: {
-            type: Type.OBJECT,
-            properties: {
-              question: { type: Type.STRING },
-              goal: { type: Type.STRING }
-            },
-            required: ["question", "goal"]
-          },
-          options: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.STRING },
-                pros: { 
-                  type: Type.ARRAY, 
-                  items: { 
-                    type: Type.OBJECT,
-                    properties: {
-                      text: { type: Type.STRING },
-                      category: { type: Type.STRING, enum: ['Financial', 'Emotional', 'Time/Effort', 'Risk', 'Other'] }
-                    }
-                  } 
-                },
-                cons: { 
-                  type: Type.ARRAY, 
-                  items: { 
-                    type: Type.OBJECT,
-                    properties: {
-                      text: { type: Type.STRING },
-                      category: { type: Type.STRING, enum: ['Financial', 'Emotional', 'Time/Effort', 'Risk', 'Other'] }
-                    }
-                  } 
-                },
-                probability: {
-                  type: Type.OBJECT,
-                  properties: {
-                    successPercent: { type: Type.NUMBER },
-                    explanation: { type: Type.STRING },
-                    risks: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ["successPercent", "explanation", "risks"]
-                },
-                factors: {
-                  type: Type.ARRAY,
-                  items: {
-                    type: Type.OBJECT,
-                    properties: {
-                      name: { type: Type.STRING },
-                      weight: { type: Type.NUMBER },
-                      rating: { type: Type.NUMBER }
-                    }
-                  }
-                },
-                totalScore: { type: Type.NUMBER }
-              },
-              required: ["id", "name", "pros", "cons", "probability", "factors", "totalScore"]
-            }
-          },
-          recommendation: {
-            type: Type.OBJECT,
-            properties: {
-              bestOption: { type: Type.STRING },
-              reasoning: { type: Type.STRING }
-            },
-            required: ["bestOption", "reasoning"]
-          },
-          reasoningSummary: { type: Type.STRING },
-          followUpQuestions: { type: Type.ARRAY, items: { type: Type.STRING } }
-        },
-        required: ["decisionClarified", "options", "recommendation", "reasoningSummary", "followUpQuestions"]
-      }
-    }
+  const response = await fetch("/api/analyze", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ question, userPriorities }),
   });
 
-  const text = response.text;
-  if (!text) throw new Error("No response from AI");
-  return JSON.parse(text);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Internal Server Error" }));
+    
+    // Provide user-friendly messaging for common error scenarios
+    if (response.status === 403 || errorData.error?.includes("permission")) {
+      throw new Error("Gemini API permission denied. Please verify your API Key has access to the 'gemini-1.5-flash' model.");
+    }
+    
+    if (response.status === 401 || errorData.error?.includes("missing")) {
+      throw new Error("Gemini API Key is missing. Please ensure 'GEMINI_API_KEY' is added to your Secrets in AI Studio.");
+    }
+    
+    throw new Error(errorData.error || `Server error: ${response.status}`);
+  }
+
+  return response.json();
 }
