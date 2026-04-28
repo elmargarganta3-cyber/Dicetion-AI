@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-brand-primary: #141414;
+  --color-brand-secondary: #8E9299;
+  --color-brand-accent: #E4E3E0;
+}
+
+@layer base {
+  body {
+    @apply bg-[#FBFBFB] text-brand-primary font-sans antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight;
+  }
+}
+
+.glass-panel {
+  @apply bg-white border border-black/5 rounded-2xl shadow-sm;
+}
+
+.grid-bg {
+  background-image: linear-gradient(to right, #00000005 1px, transparent 1px),
+    linear-gradient(to bottom, #00000005 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.analysis-section {
+  @apply py-8 border-b border-black/5 last:border-0;
+}
+
+.label-small {
+  @apply font-mono text-[10px] uppercase tracking-widest text-brand-secondary mb-2 block;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-black/10 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-black/20;
+}
